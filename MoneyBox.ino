@@ -10,7 +10,7 @@
 #include <OneButton.h>
 
 //  Software settings
-#define COINS                 0.01, 0.02, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0
+#define COINS                 0.01, 0.02, 0.05, 0.1, 0.25, 0.5, 1.0, 1.0, 2.0
 #define CURRENCY              "UAH"
 #define TITLE                 "Beer Money"
 #define STANDBY_TIME          30000
@@ -67,7 +67,7 @@ ServiceModes operator++(ServiceModes& i, int) {
 
 void setup() {
   // Debug mode
-  //  Serial.begin(9600);
+  // Serial.begin(9600);
 
   pinMode(IR_SENSOR_PIN, INPUT);
   pinMode(CALIBRATE_BUTTON_PIN, INPUT_PULLUP);
@@ -148,9 +148,10 @@ void setup() {
   standby_timer = millis();
 
   // Debug mode
-  //  for (byte i = 0; i < coin_amount; i++) {
-  //    Serial.println(String(coin_price[i]) + "\t" + String(coin_signal[i]));
-  //  }
+  // for (byte i = 0; i < coin_amount; i++) {
+  //   Serial.println("Coin signal [" + String(coin_price[i]) + "] - " + String(coin_signal[i]));
+  // }
+  // Serial.println();
 }
 
 void loop() {
@@ -201,9 +202,14 @@ void loop() {
           best_match_signal = delta;
           recognized_coin = i;
         }
+
+        // Debug mode
+        // Serial.println("Delta [" + String(coin_price[i]) + "] - " + String(delta));
       }
+      // Debug mode
+      // Serial.println("Recognized as " + String(coin_price[recognized_coin]) + " with delta " + String(best_match_signal) + "\n");
+
       coin_quantity[recognized_coin]++;
-      EEPROM.writeInt(QUANTITY_POSITION(recognized_coin), coin_quantity[recognized_coin]);
       total_money += coin_price[recognized_coin];
       lcd.setCursor(0, LCD_HEIGHT - 1);
       lcd.print(total_money);
@@ -250,6 +256,9 @@ void ShowMainScreen() {
 }
 
 void GoodNight() {
+  for (byte i = 0; i < coin_amount; i++) {
+    EEPROM.updateInt(QUANTITY_POSITION(i), coin_quantity[i]);
+  }
   sleeping = true;
   digitalWrite(LCD_POWER_PIN, LOW);
   digitalWrite(IR1_LED_POWER_PIN, LOW);
@@ -281,7 +290,7 @@ void NextServiceMode() {
         break;
       }
     case DELETE_AND_CALIBRATE: {
-        lcd.print("Delete Calibrate");
+        lcd.print("Delete&Calibrate");
         break;
       }
     case EXIT: {
@@ -327,17 +336,22 @@ void ExecuteServiceMode() {
               }
             }
             coin_quantity[i]++;
-            EEPROM.writeInt(QUANTITY_POSITION(i), coin_quantity[i]);
+
+            // Debug mode
+            // Serial.println("Calibrate " + String(j + 1) + " [" + String(coin_price[i]) + "] - " + String(temp_signal));
           }
           coin_signal[i] = round(coin_signal[i] / 3.0);
-          EEPROM.writeInt(SIGNAL_POSITION(i), coin_signal[i]);
+          EEPROM.updateInt(SIGNAL_POSITION(i), coin_signal[i]);
+
+          // Debug mode
+          // Serial.println("Average [" + String(coin_price[i]) + "] - " + String(coin_signal[i]) + "\n");
         }
         break;
       }
     case DELETE: {
         for (byte i = 0; i < coin_amount; i++) {
           coin_quantity[i] = 0;
-          EEPROM.writeInt(QUANTITY_POSITION(i), coin_quantity[i]);
+          EEPROM.updateInt(QUANTITY_POSITION(i), coin_quantity[i]);
         }
         break;
       }
@@ -348,7 +362,7 @@ void ExecuteServiceMode() {
 
         for (byte i = 0; i < coin_amount; i++) {
           coin_quantity[i] = 0;
-          EEPROM.writeInt(QUANTITY_POSITION(i), coin_quantity[i]);
+          EEPROM.updateInt(QUANTITY_POSITION(i), coin_quantity[i]);
         }
 
         for (byte i = 0; i < coin_amount; i++) {
@@ -378,10 +392,15 @@ void ExecuteServiceMode() {
               }
             }
             coin_quantity[i]++;
-            EEPROM.writeInt(QUANTITY_POSITION(i), coin_quantity[i]);
+
+            // Debug mode
+            // Serial.println("Calibrate " + String(j + 1) + " [" + String(coin_price[i]) + "] - " + String(temp_signal));
           }
           coin_signal[i] = round(coin_signal[i] / 3.0);
-          EEPROM.writeInt(SIGNAL_POSITION(i), coin_signal[i]);
+          EEPROM.updateInt(SIGNAL_POSITION(i), coin_signal[i]);
+
+          // Debug mode
+          // Serial.println("Average [" + String(coin_price[i]) + "] - " + String(coin_signal[i]) + "\n");
         }
         break;
       }
