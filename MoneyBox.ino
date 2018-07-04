@@ -40,7 +40,7 @@ OneButton calibrate_button(CALIBRATE_BUTTON_PIN, true);
 const float coin_price[] = {COINS};
 const byte coin_amount = sizeof(coin_price) / sizeof(float);
 word coin_signal[coin_amount], coin_quantity[coin_amount];
-word empty_signal, sensor_signal, sensor_max_signal, best_match_signal;
+word empty_signal, sensor_signal, sensor_max_signal, best_match_delta, smallest_coin_signal;
 byte recognized_coin;
 unsigned long standby_timer;
 bool coin_detected, service_trigger, sleeping;
@@ -145,13 +145,14 @@ void setup() {
     coin_quantity[i] = EEPROM.readInt(QUANTITY_POSITION(i));
     total_money += coin_quantity[i] * coin_price[i];
   }
+  smallest_coin_signal = GetMinSignal();
   standby_timer = millis();
 
   // Debug mode
-  // for (byte i = 0; i < coin_amount; i++) {
-  //   Serial.println("Coin signal [" + String(coin_price[i]) + "] - " + String(coin_signal[i]));
-  // }
-  // Serial.println();
+  //  for (byte i = 0; i < coin_amount; i++) {
+  //    Serial.println("Coin signal [" + String(coin_price[i]) + "] - " + String(coin_signal[i]));
+  //  }
+  //  Serial.println();
 }
 
 void loop() {
@@ -193,27 +194,33 @@ void loop() {
     if ((sensor_max_signal - sensor_signal) > DETECTION_THRESHOLD) {
       coin_detected = true;
     }
-    if (coin_detected && (abs(sensor_signal - empty_signal) < round(DETECTION_THRESHOLD / 2.0))) {
+    if (coin_detected && (abs((int)(sensor_signal - empty_signal)) < round(DETECTION_THRESHOLD / 2.0))) {
       coin_detected = false;
-      best_match_signal = UINT_MAX;
-      for (byte i = 0; i < coin_amount; i++) {
-        word delta = abs((int)(sensor_max_signal - coin_signal[i]));
-        if (delta < best_match_signal) {
-          best_match_signal = delta;
-          recognized_coin = i;
-        }
+      if (sensor_max_signal > (smallest_coin_signal - round(DETECTION_THRESHOLD / 2.0))) {
+        best_match_delta = UINT_MAX;
+        for (byte i = 0; i < coin_amount; i++) {
+          word delta = abs((int)(sensor_max_signal - coin_signal[i]));
+          if (delta < best_match_delta) {
+            best_match_delta = delta;
+            recognized_coin = i;
+          }
 
+          // Debug mode
+          // Serial.println("Delta [" + String(coin_price[i]) + "] - " + String(delta));
+        }
         // Debug mode
-        // Serial.println("Delta [" + String(coin_price[i]) + "] - " + String(delta));
+        // Serial.println("Recognized as " + String(coin_price[recognized_coin]) + " with delta " + String(best_match_delta) + "\n");
+
+        coin_quantity[recognized_coin]++;
+        total_money += coin_price[recognized_coin];
+        lcd.setCursor(0, LCD_HEIGHT - 1);
+        lcd.print(total_money);
+        standby_timer = millis();
       }
       // Debug mode
-      // Serial.println("Recognized as " + String(coin_price[recognized_coin]) + " with delta " + String(best_match_signal) + "\n");
-
-      coin_quantity[recognized_coin]++;
-      total_money += coin_price[recognized_coin];
-      lcd.setCursor(0, LCD_HEIGHT - 1);
-      lcd.print(total_money);
-      standby_timer = millis();
+      // else {
+      //   Serial.println("Recognized as random noise peak with delta " + String(smallest_coin_signal - sensor_max_signal) + "\n");
+      // }
       break;
     }
     if ((millis() - standby_timer) > STANDBY_TIME) {
@@ -329,7 +336,7 @@ void ExecuteServiceMode() {
               if ((temp_signal - sensor_signal) > DETECTION_THRESHOLD) {
                 coin_detected = true;
               }
-              if (coin_detected && (abs(sensor_signal - empty_signal) < round(DETECTION_THRESHOLD / 2.0))) {
+              if (coin_detected && (abs((int)(sensor_signal - empty_signal)) < round(DETECTION_THRESHOLD / 2.0))) {
                 coin_detected = false;
                 coin_signal[i] += temp_signal;
                 break;
@@ -346,6 +353,7 @@ void ExecuteServiceMode() {
           // Debug mode
           // Serial.println("Average [" + String(coin_price[i]) + "] - " + String(coin_signal[i]) + "\n");
         }
+        smallest_coin_signal = GetMinSignal();
         break;
       }
     case DELETE: {
@@ -385,7 +393,7 @@ void ExecuteServiceMode() {
               if ((temp_signal - sensor_signal) > DETECTION_THRESHOLD) {
                 coin_detected = true;
               }
-              if (coin_detected && (abs(sensor_signal - empty_signal) < round(DETECTION_THRESHOLD / 2.0))) {
+              if (coin_detected && (abs((int)(sensor_signal - empty_signal)) < round(DETECTION_THRESHOLD / 2.0))) {
                 coin_detected = false;
                 coin_signal[i] += temp_signal;
                 break;
@@ -402,6 +410,7 @@ void ExecuteServiceMode() {
           // Debug mode
           // Serial.println("Average [" + String(coin_price[i]) + "] - " + String(coin_signal[i]) + "\n");
         }
+        smallest_coin_signal = GetMinSignal();
         break;
       }
     case EXIT: {
@@ -415,5 +424,17 @@ void ExecuteServiceMode() {
     delay(3000);
   }
   ShowMainScreen();
+}
+
+
+word GetMinSignal() {
+  word min_signal;
+  min_signal = UINT_MAX;
+  for (byte i = 0; i < coin_amount; i++) {
+    if (coin_signal[i] < min_signal) {
+      min_signal = coin_signal[i];
+    }
+  }
+  return min_signal;
 }
 
