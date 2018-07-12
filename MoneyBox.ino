@@ -10,7 +10,7 @@
 #include <OneButton.h>
 
 //  Software settings
-#define COINS                 0.01, 0.02, 0.05, 0.1, 0.25, 0.5, 1.0, 1.0, 2.0
+#define COINS                 0.05, 0.1, 0.25, 0.5, 1.0, 1.0, 2.0
 #define CURRENCY              "UAH"
 #define TITLE                 "Beer Money"
 #define STANDBY_TIME          30000
@@ -196,7 +196,7 @@ void loop() {
     }
     if (coin_detected && (abs((int)(sensor_signal - empty_signal)) < round(DETECTION_THRESHOLD / 2.0))) {
       coin_detected = false;
-      if (sensor_max_signal > (smallest_coin_signal - round(DETECTION_THRESHOLD / 2.0))) {
+      if (sensor_max_signal > (smallest_coin_signal - DETECTION_THRESHOLD)) {
         best_match_delta = UINT_MAX;
         for (byte i = 0; i < coin_amount; i++) {
           word delta = abs((int)(sensor_max_signal - coin_signal[i]));
