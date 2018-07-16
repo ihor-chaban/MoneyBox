@@ -15,6 +15,8 @@
 #define TITLE                 "Beer Money"
 #define STANDBY_TIME          30000
 #define DETECTION_THRESHOLD   50
+#define COIN_SIGNAL_ADJUSTING 1
+#define ADJUSTING_COEFFICIENT 2
 #define SENSOR_WARNING_VALUE  200
 #define SENSOR_ERROR_VALUE    1000
 
@@ -209,8 +211,17 @@ void loop() {
           // Serial.println("Delta [" + String(coin_price[i]) + "] - " + String(delta));
         }
         // Debug mode
-        // Serial.println("Recognized as " + String(coin_price[recognized_coin]) + " with delta " + String(best_match_delta) + "\n");
+        // Serial.println("Recognized as " + String(coin_price[recognized_coin]) + " with delta " + String(best_match_delta));
 
+        if (COIN_SIGNAL_ADJUSTING) {
+          // Debug mode
+          // Serial.print("Old coin signal is " + String(coin_signal[recognized_coin]) + ", New coin signal is " + String(sensor_max_signal) + ", Adjusted coin signal is ");
+
+          coin_signal[recognized_coin] = round((float)((coin_signal[recognized_coin] * ADJUSTING_COEFFICIENT) + sensor_max_signal) / (ADJUSTING_COEFFICIENT + 1));
+
+          // Debug mode
+          // Serial.println(String(coin_signal[recognized_coin])  + "\n");
+        }
         coin_quantity[recognized_coin]++;
         total_money += coin_price[recognized_coin];
         lcd.setCursor(0, LCD_HEIGHT - 1);
@@ -218,9 +229,9 @@ void loop() {
         standby_timer = millis();
       }
       // Debug mode
-      // else {
-      //   Serial.println("Recognized as random noise peak with delta " + String(smallest_coin_signal - sensor_max_signal) + "\n");
-      // }
+      //      else {
+      //        Serial.println("Recognized as random noise peak with delta " + String(smallest_coin_signal - sensor_max_signal) + "\n");
+      //      }
       break;
     }
     if ((millis() - standby_timer) > STANDBY_TIME) {
@@ -265,6 +276,11 @@ void ShowMainScreen() {
 void GoodNight() {
   for (byte i = 0; i < coin_amount; i++) {
     EEPROM.updateInt(QUANTITY_POSITION(i), coin_quantity[i]);
+  }
+  if (COIN_SIGNAL_ADJUSTING) {
+    for (byte i = 0; i < coin_amount; i++) {
+      EEPROM.updateInt(SIGNAL_POSITION(i), coin_signal[i]);
+    }
   }
   sleeping = true;
   digitalWrite(LCD_POWER_PIN, LOW);
