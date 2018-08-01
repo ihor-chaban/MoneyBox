@@ -26,7 +26,6 @@
 #define LCD_POWER_PIN         10
 #define IR1_LED_POWER_PIN     11
 #define IR2_LED_POWER_PIN     12
-#define SYSTEM_LED_POWER_PIN  13
 #define IR_SENSOR_PIN         A3
 #define IR_SENSOR_POWER_PIN   A0
 #define LCD_ADDRESS           0x3F
@@ -77,9 +76,7 @@ void setup() {
   pinMode(IR1_LED_POWER_PIN, OUTPUT);
   pinMode(IR2_LED_POWER_PIN, OUTPUT);
   pinMode(IR_SENSOR_POWER_PIN, OUTPUT);
-  pinMode(SYSTEM_LED_POWER_PIN, OUTPUT);
   attachInterrupt(digitalPinToInterrupt(WAKE_BUTTON_PIN), WakeUp, RISING);
-  digitalWrite(SYSTEM_LED_POWER_PIN, LOW);
   digitalWrite(LCD_POWER_PIN, HIGH);
   digitalWrite(IR1_LED_POWER_PIN, HIGH);
   digitalWrite(IR2_LED_POWER_PIN, HIGH);
