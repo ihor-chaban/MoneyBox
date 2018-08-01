@@ -90,7 +90,7 @@ void setup() {
   lcd.backlight();
   lcd.setCursor(0, 0);
   lcd.print("MoneyBox");
-  lcd.setCursor(0, LCD_HEIGHT - 1);
+  lcd.setCursor(0, 1);
   lcd.print("by Gorus");
   for (byte i = 0; i < sizeof(dollar_image[0]); i++) {
     lcd.createChar(i, dollar_image[i]);
@@ -100,7 +100,7 @@ void setup() {
     lcd.write(i);
   }
   for (byte i = 0; i < (sizeof(dollar_image[0]) / 2); i++) {
-    lcd.setCursor(LCD_WIDTH - (sizeof(dollar_image[0]) / 2) + i, LCD_HEIGHT - 1);
+    lcd.setCursor(LCD_WIDTH - (sizeof(dollar_image[0]) / 2) + i, 1);
     lcd.write((sizeof(dollar_image[0]) / 2) + i);
   }
 
@@ -221,7 +221,7 @@ void loop() {
         }
         coin_quantity[recognized_coin]++;
         total_money += coin_price[recognized_coin];
-        lcd.setCursor(0, LCD_HEIGHT - 1);
+        lcd.setCursor(0, 1);
         lcd.print(total_money);
         standby_timer = millis();
       }
@@ -253,7 +253,7 @@ void ShowCoins() {
         temp_string.remove(temp_string.length() - 1);
       }
       lcd.print(temp_string);
-      lcd.setCursor((j - i * 4) * 4, LCD_HEIGHT - 1);
+      lcd.setCursor((j - i * 4) * 4, 1);
       lcd.print(coin_quantity[j]);
     }
     delay(5000);
@@ -264,9 +264,9 @@ void ShowMainScreen() {
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print(TITLE);
-  lcd.setCursor(0, LCD_HEIGHT - 1);
+  lcd.setCursor(0, 1);
   lcd.print(total_money);
-  lcd.setCursor(LCD_WIDTH - 3, LCD_HEIGHT - 1);
+  lcd.setCursor(LCD_WIDTH - 3, 1);
   lcd.print(CURRENCY);
 }
 
@@ -299,7 +299,7 @@ void WakeUp() {
 
 void NextServiceMode() {
   service_mode++;
-  lcd.setCursor(0, LCD_HEIGHT - 1);
+  lcd.setCursor(0, 1);
   switch (service_mode) {
     case CALIBRATE: {
         lcd.print("   Calibrate    ");
@@ -330,9 +330,9 @@ void ExecuteServiceMode() {
         lcd.print("Calibrating    ");
 
         for (byte i = 0; i < coin_amount; i++) {
-          lcd.setCursor(0, LCD_HEIGHT - 1);
+          lcd.setCursor(0, 1);
           lcd.print(coin_price[i]);
-          lcd.setCursor(LCD_WIDTH - 3, LCD_HEIGHT - 1);
+          lcd.setCursor(LCD_WIDTH - 3, 1);
           lcd.print(CURRENCY);
 
           sensor_max_signal = empty_signal;
@@ -387,9 +387,9 @@ void ExecuteServiceMode() {
         }
 
         for (byte i = 0; i < coin_amount; i++) {
-          lcd.setCursor(0, LCD_HEIGHT - 1);
+          lcd.setCursor(0, 1);
           lcd.print(coin_price[i]);
-          lcd.setCursor(LCD_WIDTH - 3, LCD_HEIGHT - 1);
+          lcd.setCursor(LCD_WIDTH - 3, 1);
           lcd.print(CURRENCY);
 
           sensor_max_signal = empty_signal;
