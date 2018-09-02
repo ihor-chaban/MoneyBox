@@ -8,15 +8,21 @@
 #include <LiquidCrystal_I2C.h>
 #include <LowPower.h>
 #include <OneButton.h>
+#include <StandardCplusplus.h>
+#include <set>
+#include <vector>
+
+using std::vector;
+using std::set;
 
 //  Software settings
-#define COINS                 0.05, 0.1, 0.25, 0.5, 1.0, 1.0, 2.0
+#define COINS                 0.05, 0.10, 0.25, 0.50, 1.00, 1.00, 2.00
 #define CURRENCY              "UAH"
 #define TITLE                 "Beer Money"
 #define STANDBY_TIME          30000
 #define DETECTION_THRESHOLD   50
 #define COIN_SIGNAL_ADJUSTING 1
-#define ADJUSTING_COEFFICIENT 2
+#define ADJUSTING_COEFFICIENT 3
 #define SENSOR_WARNING_VALUE  200
 #define SENSOR_ERROR_VALUE    1000
 
@@ -44,7 +50,7 @@ word coin_signal[coin_amount], coin_quantity[coin_amount];
 word empty_signal, sensor_signal, sensor_max_signal, best_match_delta, smallest_coin_signal;
 byte recognized_coin;
 unsigned long standby_timer;
-bool coin_detected, service_trigger, sleeping;
+bool coin_detected, service_trigger, add_coins, add_coins_trigger, sleeping;
 float total_money;
 const byte dollar_image[8][8] = {
   {0x01, 0x03, 0x02, 0x06, 0x0C, 0x0C, 0x0C, 0x08},
@@ -85,7 +91,6 @@ void setup() {
   wake_button.attachLongPressStop(ShowMainScreen);
   calibrate_button.attachClick(NextServiceMode);
   calibrate_button.attachDoubleClick(ExecuteServiceMode);
-
   lcd.init();
   lcd.backlight();
   lcd.setCursor(0, 0);
@@ -103,7 +108,6 @@ void setup() {
     lcd.setCursor(LCD_WIDTH - (sizeof(dollar_image[0]) / 2) + i, 1);
     lcd.write((sizeof(dollar_image[0]) / 2) + i);
   }
-
   empty_signal = 0;
   for (byte i = 0; i < 5; i++) {
     empty_signal += analogRead(IR_SENSOR_PIN);
@@ -181,9 +185,7 @@ void loop() {
       }
     }
   }
-
   ShowMainScreen();
-
   sensor_max_signal = empty_signal;
   while (true) {
     sensor_signal = analogRead(IR_SENSOR_PIN);
@@ -239,27 +241,6 @@ void loop() {
   }
 }
 
-void ShowCoins() {
-  String temp_string;
-  byte number_of_screens = (coin_amount % 4) ? (coin_amount / 4 + 1) : (coin_amount / 4);
-  for (byte i = 0; i < number_of_screens; i++) {
-    lcd.clear();
-    for (byte j = i * 4; j < min(coin_amount, i * 4 + 4); j++) {
-      lcd.setCursor((j - i * 4) * 4, 0);
-      temp_string = String(coin_price[j]);
-      if (coin_price[j] < 1) {
-        temp_string.remove(0, 1);
-      } else {
-        temp_string.remove(temp_string.length() - 1);
-      }
-      lcd.print(temp_string);
-      lcd.setCursor((j - i * 4) * 4, 1);
-      lcd.print(coin_quantity[j]);
-    }
-    delay(5000);
-  }
-}
-
 void ShowMainScreen() {
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -268,6 +249,41 @@ void ShowMainScreen() {
   lcd.print(total_money);
   lcd.setCursor(LCD_WIDTH - 3, 1);
   lcd.print(CURRENCY);
+}
+
+void ShowCoins() {
+  vector<float> unique_coin_price = {COINS};
+  set<float> temp_set(unique_coin_price.begin(), unique_coin_price.end());
+  unique_coin_price.assign(temp_set.begin(), temp_set.end());
+  vector<word> unique_coin_quantity(unique_coin_price.size(), 0);
+  for (byte i = 0; i < unique_coin_price.size(); i++) {
+    for (byte j = 0; j < coin_amount; j++) {
+      if (unique_coin_price[i] == coin_price[j])
+        unique_coin_quantity[i] += coin_quantity[j];
+    }
+  }
+  String temp_string;
+  byte number_of_screens = ((unique_coin_price.size() + 1) % 4) ? ((unique_coin_price.size() + 1) / 4 + 1) : ((unique_coin_price.size() + 1) / 4);
+  word coins_in_total = 0;
+  for (byte i = 0; i < coin_amount; i++) {
+    coins_in_total += coin_quantity[i];
+  }
+  for (byte i = 0; i < number_of_screens; i++) {
+    lcd.clear();
+    for (byte j = i * 4; j < std::min((int)(unique_coin_price.size() + 1), i * 4 + 4); j++) {
+      lcd.setCursor((j - i * 4) * 4, 0);
+      temp_string = String(unique_coin_price[j]);
+      if (unique_coin_price[j] < 1) {
+        temp_string.remove(0, 1);
+      } else {
+        temp_string.remove(temp_string.length() - 1);
+      }
+      lcd.print((j < unique_coin_price.size()) ? temp_string : "All");
+      lcd.setCursor((j - i * 4) * 4, 1);
+      lcd.print((j < unique_coin_price.size()) ? unique_coin_quantity[j] : coins_in_total);
+    }
+    delay(5000);
+  }
 }
 
 void GoodNight() {
@@ -325,21 +341,21 @@ void ExecuteServiceMode() {
   word temp_signal;
   switch (service_mode) {
     case CALIBRATE: {
+        for (byte i = 0; i < coin_amount; i++) {
+          coin_quantity[i] = EEPROM.readInt(QUANTITY_POSITION(i));
+        }
         lcd.clear();
         lcd.setCursor(0, 0);
         lcd.print("Calibrating    ");
-
         for (byte i = 0; i < coin_amount; i++) {
           lcd.setCursor(0, 1);
           lcd.print(coin_price[i]);
           lcd.setCursor(LCD_WIDTH - 3, 1);
           lcd.print(CURRENCY);
-
           sensor_max_signal = empty_signal;
           for (byte j = 0; j < 3; j++) {
             lcd.setCursor(LCD_WIDTH - 1, 0);
             lcd.print(j + 1);
-
             temp_signal = empty_signal;
             while (true) {
               sensor_signal = analogRead(IR_SENSOR_PIN);
@@ -355,7 +371,6 @@ void ExecuteServiceMode() {
                 break;
               }
             }
-            coin_quantity[i]++;
 
             // Debug mode
             // Serial.println("Calibrate " + String(j + 1) + " [" + String(coin_price[i]) + "] - " + String(temp_signal));
@@ -366,37 +381,43 @@ void ExecuteServiceMode() {
           // Debug mode
           // Serial.println("Average [" + String(coin_price[i]) + "] - " + String(coin_signal[i]) + "\n");
         }
-        smallest_coin_signal = GetMinSignal();
+        lcd.clear();
+        lcd.print("Add coins to sum");
+        lcd.setCursor(0, 1);
+        ToggleAddCoins();
+        calibrate_button.attachClick(ToggleAddCoins);
+        calibrate_button.attachDoubleClick(ExecuteAddCoins);
+        calibrate_button.reset();
+        while (!add_coins_trigger) {
+          calibrate_button.tick();
+        }
         break;
       }
     case DELETE: {
         for (byte i = 0; i < coin_amount; i++) {
-          coin_quantity[i] = 0;
-          EEPROM.updateInt(QUANTITY_POSITION(i), coin_quantity[i]);
+          EEPROM.updateInt(QUANTITY_POSITION(i), 0);
         }
         break;
       }
     case DELETE_AND_CALIBRATE: {
+        for (byte i = 0; i < coin_amount; i++) {
+          coin_quantity[i] = 0;
+        }
         lcd.clear();
         lcd.setCursor(0, 0);
         lcd.print("Calibrating    ");
-
         for (byte i = 0; i < coin_amount; i++) {
           coin_quantity[i] = 0;
-          EEPROM.updateInt(QUANTITY_POSITION(i), coin_quantity[i]);
         }
-
         for (byte i = 0; i < coin_amount; i++) {
           lcd.setCursor(0, 1);
           lcd.print(coin_price[i]);
           lcd.setCursor(LCD_WIDTH - 3, 1);
           lcd.print(CURRENCY);
-
           sensor_max_signal = empty_signal;
           for (byte j = 0; j < 3; j++) {
             lcd.setCursor(LCD_WIDTH - 1, 0);
             lcd.print(j + 1);
-
             temp_signal = empty_signal;
             while (true) {
               sensor_signal = analogRead(IR_SENSOR_PIN);
@@ -412,7 +433,6 @@ void ExecuteServiceMode() {
                 break;
               }
             }
-            coin_quantity[i]++;
 
             // Debug mode
             // Serial.println("Calibrate " + String(j + 1) + " [" + String(coin_price[i]) + "] - " + String(temp_signal));
@@ -423,7 +443,16 @@ void ExecuteServiceMode() {
           // Debug mode
           // Serial.println("Average [" + String(coin_price[i]) + "] - " + String(coin_signal[i]) + "\n");
         }
-        smallest_coin_signal = GetMinSignal();
+        lcd.clear();
+        lcd.print("Add coins to sum");
+        lcd.setCursor(0, 1);
+        ToggleAddCoins();
+        calibrate_button.attachClick(ToggleAddCoins);
+        calibrate_button.attachDoubleClick(ExecuteAddCoins);
+        calibrate_button.reset();
+        while (!add_coins_trigger) {
+          calibrate_button.tick();
+        }
         break;
       }
     case EXIT: {
@@ -439,6 +468,24 @@ void ExecuteServiceMode() {
   ShowMainScreen();
 }
 
+void ToggleAddCoins() {
+  add_coins = !add_coins;
+  lcd.setCursor(0, 1);
+  lcd.print((add_coins) ? " Yes <       No " : " Yes       > No ");
+}
+
+void ExecuteAddCoins() {
+  add_coins_trigger = true;
+  if (add_coins) {
+    for (byte i = 0; i < coin_amount; i++) {
+      EEPROM.updateInt(QUANTITY_POSITION(i), coin_quantity[i] + 3);
+    }
+  } else {
+    for (byte i = 0; i < coin_amount; i++) {
+      EEPROM.updateInt(QUANTITY_POSITION(i), coin_quantity[i]);
+    }
+  }
+}
 
 word GetMinSignal() {
   word min_signal;
